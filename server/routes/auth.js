@@ -90,5 +90,35 @@ router.post('/login', async (req, res) => {
         res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     }
 });
+// Эндпоинт получения данных о текущем пользователе: GET /api/auth/me
+router.get('/me', async (req, res) => {
+    // Получаем токен из заголовков запроса (обычно Authorization: Bearer TOKEN)
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
 
+    if (!token) {
+        return res.status(401).json({ error: 'Доступ запрещен: отсутствует токен авторизации' });
+    }
+
+    try {
+        // Проверяем и расшифровываем токен
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        // Ищем пользователя в БД по id из токена
+        const sql = 'SELECT id, name, email, phone, role FROM users WHERE id = ?';
+        db.get(sql, [decoded.id], (err, user) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            if (!user) {
+                return res.status(404).json({ error: 'Пользователь не найден' });
+            }
+
+            // Возвращаем данные пользователя
+            res.json(user);
+        });
+    } catch (error) {
+        return res.status(403).json({ error: 'Неверный или просроченный токен' });
+    }
+});
 module.exports = router;
